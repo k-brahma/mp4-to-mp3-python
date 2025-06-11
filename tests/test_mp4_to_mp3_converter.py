@@ -65,20 +65,28 @@ class TestMP4ToMP3ConverterConvertFile:
             f.write("dummy content")
         
         with patch('asyncio.create_subprocess_exec') as mock_subprocess, \
-             patch('os.path.exists', return_value=True) as mock_exists, \
              patch('os.remove') as mock_remove:
             
             mock_process = MagicMock()
-            mock_process.communicate = MagicMock(return_value=(b'stdout', b'stderr'))
+            # communicateメソッドを非同期コルーチンとしてモック
+            async def mock_communicate():
+                return (b'stdout', b'stderr')
+            mock_process.communicate = mock_communicate
             mock_process.returncode = 0  # 成功を示すリターンコード
             mock_subprocess.return_value = mock_process
             
-            result_file, success, error = await converter._convert_file(input_file, output_file)
-            
-            assert success is True
-            assert result_file == input_file
-            assert error == ""
-            mock_subprocess.assert_called_once()
+            # _convert_file内でos.path.existsが呼ばれるタイミングで出力ファイルが存在すると仮定
+            with patch('mp4_to_mp3_converter.os.path.exists') as mock_exists:
+                # 最初の呼び出し（既存ファイルチェック）ではFalse、
+                # 2回目の呼び出し（変換後チェック）ではTrueを返す
+                mock_exists.side_effect = [False, True]
+                
+                result_file, success, error = await converter._convert_file(input_file, output_file)
+                
+                assert success is True, f"Expected success=True, got success={success}, error='{error}'"
+                assert result_file == input_file
+                assert error == ""
+                mock_subprocess.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_convert_file_failure(self, converter, temp_dir):
@@ -113,10 +121,12 @@ class TestMP4ToMP3ConverterOpenOutputDir:
         converter.output_dir = test_dir
         
         with patch('os.path.exists', return_value=True), \
-             patch('subprocess.run') as mock_run, \
-             patch('sys.platform', 'win32'):
+             patch('os.startfile') as mock_startfile, \
+             patch('sys.platform', 'win32'), \
+             patch('tkinter.messagebox.showwarning'), \
+             patch('tkinter.messagebox.showerror'):
             converter._open_output_dir()
-            mock_run.assert_called_once_with(['explorer', test_dir])
+            mock_startfile.assert_called_once_with(test_dir)
 
     def test_open_output_dir_not_exists(self, converter):
         """存在しない出力ディレクトリを開くテスト"""
@@ -124,6 +134,8 @@ class TestMP4ToMP3ConverterOpenOutputDir:
         converter.output_dir = test_dir
         
         with patch('os.path.exists', return_value=False), \
-             patch('subprocess.run') as mock_run:
+             patch('os.startfile') as mock_startfile, \
+             patch('tkinter.messagebox.showwarning') as mock_warning:
             converter._open_output_dir()
-            mock_run.assert_not_called() 
+            mock_startfile.assert_not_called()
+            mock_warning.assert_called_once() 

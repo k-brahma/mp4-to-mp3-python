@@ -72,7 +72,7 @@ class MP4ToMP3Converter:
     def _create_widgets(self):
         # メインフレーム
         main_frame = ttk.Frame(self.window, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.grid(row=0, column=0, sticky="nsew")
         
         # ウィンドウのリサイズ設定
         self.window.columnconfigure(0, weight=1)
@@ -130,7 +130,7 @@ class MP4ToMP3Converter:
             length=400,
             mode='determinate'
         )
-        self.progress.grid(row=5, column=0, pady=10, sticky=(tk.W, tk.E))
+        self.progress.grid(row=5, column=0, pady=10, sticky="we")
         
         # ステータスラベル
         self.status_label = ttk.Label(
@@ -142,7 +142,7 @@ class MP4ToMP3Converter:
         
         # ファイルリスト
         listbox_frame = ttk.Frame(main_frame)
-        listbox_frame.grid(row=7, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        listbox_frame.grid(row=7, column=0, sticky="nsew", pady=10)
         listbox_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(7, weight=1)
         
@@ -150,11 +150,11 @@ class MP4ToMP3Converter:
             listbox_frame,
             height=8
         )
-        self.file_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.file_listbox.grid(row=0, column=0, sticky="nsew")
         
         # スクロールバー
         scrollbar = ttk.Scrollbar(listbox_frame, orient=tk.VERTICAL, command=self.file_listbox.yview)
-        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky="ns")
         self.file_listbox.configure(yscrollcommand=scrollbar.set)
         
         # FFmpeg情報ラベル
@@ -199,16 +199,23 @@ class MP4ToMP3Converter:
     
     def _open_output_dir(self):
         """出力ディレクトリをエクスプローラーで開く"""
-        if self.output_dir and os.path.exists(self.output_dir):
-            try:
-                if sys.platform == "win32":
-                    subprocess.run(['explorer', self.output_dir])
-                elif sys.platform == "darwin":  # macOS
-                    subprocess.run(['open', self.output_dir])
-                else:  # Linux
-                    subprocess.run(['xdg-open', self.output_dir])
-            except Exception as e:
-                messagebox.showerror("エラー", f"ディレクトリを開けませんでした: {str(e)}")
+        if not self.output_dir:
+            messagebox.showwarning("出力先未選択", "出力ディレクトリが選択されていません。")
+            return
+
+        if not os.path.exists(self.output_dir):
+            messagebox.showwarning("出力先エラー", "出力ディレクトリが存在しません。")
+            return
+
+        try:
+            if sys.platform == "win32":
+                os.startfile(self.output_dir)
+            elif sys.platform == "darwin":  # macOS
+                subprocess.run(['open', self.output_dir])
+            else:  # Linux
+                subprocess.run(['xdg-open', self.output_dir])
+        except Exception as e:
+            messagebox.showerror("エラー", f"ディレクトリを開けませんでした: {str(e)}")
     
     async def _convert_file(self, input_file: str, output_file: str) -> Tuple[str, bool, str]:
         """
@@ -376,8 +383,8 @@ if __name__ == "__main__":
         app.run()
     except Exception as e:
         # 予期しないエラーをキャッチ
-        if tk._default_root:
+        try:
             messagebox.showerror("エラー", f"アプリケーションエラーが発生しました:\n{str(e)}")
-        else:
+        except:
             print(f"Error: {e}")
         sys.exit(1) 
