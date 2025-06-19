@@ -69,10 +69,9 @@ class TestMP4ToMP3ConverterConvertFile:
              patch('os.remove') as mock_remove:
             
             def exists_side_effect(path):
-                # 最初の呼び出し（削除前チェック）はFalse
-                # 2回目の呼び出し（変換後チェック）はTrue
                 if path == output_file:
-                    return True  # 変換後は存在するとして返す
+                    # 変換後のチェックでは常にTrueを返す（変換成功を示す）
+                    return True
                 return False
             
             mock_exists.side_effect = exists_side_effect
